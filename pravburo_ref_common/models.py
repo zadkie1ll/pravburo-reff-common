@@ -25,6 +25,12 @@ class AgentRole(StrEnum):
     ADMIN = "admin"
 
 
+class EmploymentFormat(StrEnum):
+    SELF_EMPLOYED = "self_employed"
+    INDIVIDUAL_ENTREPRENEUR = "individual_entrepreneur"
+    INDIVIDUAL = "individual"
+
+
 class DeliveryStatus(StrEnum):
     PENDING = "pending"
     SENT = "sent"
@@ -52,6 +58,12 @@ class Agent:
         PGUUID(as_uuid=True), default=uuid4, unique=True, index=True
     )
     legacy_client_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    employment_format: Mapped[EmploymentFormat | None] = mapped_column(
+        enum_type(EmploymentFormat), nullable=True
+    )
+    payout_details: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
