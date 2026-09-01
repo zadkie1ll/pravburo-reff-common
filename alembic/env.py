@@ -83,6 +83,7 @@ async def run_async_migrations() -> None:
             text(f'CREATE SCHEMA IF NOT EXISTS "{settings.referral_db_schema}"')
         )
         await connection.run_sync(do_run_migrations)
+        await connection.commit()
     await connectable.dispose()
 
 
