@@ -1,3 +1,14 @@
+Metadata-Version: 2.4
+Name: pravburo-reff-common
+Version: 0.1.0
+Summary: Shared database schema and contracts for Pravburo Referral
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: alembic<2,>=1.16
+Requires-Dist: asyncpg<1,>=0.30
+Requires-Dist: pydantic-settings<3,>=2.10
+Requires-Dist: sqlalchemy[asyncio]<3,>=2.0.41
+
 # pravburo-reff-common
 
 Общий Git-сабмодуль сервисов Pravburo Referral.
@@ -18,13 +29,3 @@ uv sync
 uv run alembic history
 uv run alembic upgrade head
 ```
-
-Выделенная PostgreSQL и миграции запускаются из этого же репозитория:
-
-```bash
-docker compose up --build -d pravburo-reff-postgres
-docker compose run --rm pravburo-reff-migrations
-```
-
-PostgreSQL публикуется только на `127.0.0.1:5540`. Прикладные сервисы не имеют
-собственных Alembic-каталогов и не запускают миграции при старте.
