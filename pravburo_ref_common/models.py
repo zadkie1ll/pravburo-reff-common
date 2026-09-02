@@ -1,8 +1,19 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, registry, relationship
 from sqlalchemy.sql import func
@@ -41,6 +52,13 @@ class RewardStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class RewardType(StrEnum):
+    ADVANCE = "advance"
+    MAIN = "main"
+    BONUS_FULL_PAYMENT = "bonus_full_payment"
+    QUARTERLY_BONUS = "quarterly_bonus"
 
 
 @app_registry.mapped
@@ -154,9 +172,12 @@ class Reward:
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     deal_id: Mapped[str] = mapped_column(String(64), index=True)
     application_id: Mapped[int] = mapped_column(
-        ForeignKey("referral.referral_applications.id"), unique=True
+        ForeignKey("referral.referral_applications.id"), index=True
     )
     agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
+    reward_type: Mapped[RewardType] = mapped_column(enum_type(RewardType), default=RewardType.MAIN)
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[RewardStatus] = mapped_column(
         enum_type(RewardStatus), default=RewardStatus.PENDING
     )

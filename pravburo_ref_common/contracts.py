@@ -1,4 +1,8 @@
+from decimal import Decimal
+
 from pydantic import BaseModel, Field
+
+from pravburo_ref_common.models import RewardType
 
 
 class LeadCreate(BaseModel):
@@ -17,3 +21,5 @@ class RewardCreate(BaseModel):
     deal_id: str = Field(min_length=1, max_length=64)
     application_id: int
     agent_id: int
+    reward_type: RewardType = RewardType.MAIN
+    amount: Decimal | None = None
