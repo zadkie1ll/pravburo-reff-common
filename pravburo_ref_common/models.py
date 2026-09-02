@@ -164,3 +164,15 @@ class Reward:
         ForeignKey("referral.agents.id"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class ReferralLinkVisit:
+    """One row per visit to an agent's application link (/r/{referral_code})."""
+
+    __tablename__ = "referral_link_visits"
+    __table_args__ = (Index("ix_referral_link_visits_agent_created", "agent_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
