@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -16,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, registry, relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 
 from pravburo_ref_common.database import app_metadata
 
@@ -59,6 +60,7 @@ class RewardType(StrEnum):
     MAIN = "main"
     BONUS_FULL_PAYMENT = "bonus_full_payment"
     QUARTERLY_BONUS = "quarterly_bonus"
+    OVERRIDE = "override"
 
 
 @app_registry.mapped
@@ -76,6 +78,9 @@ class Agent:
         PGUUID(as_uuid=True), default=uuid4, unique=True, index=True
     )
     legacy_client_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    invited_by_agent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("referral.agents.id"), index=True, nullable=True
+    )
     employment_format: Mapped[EmploymentFormat | None] = mapped_column(
         enum_type(EmploymentFormat), nullable=True
     )
@@ -167,7 +172,31 @@ class ReferralApplication:
 @app_registry.mapped
 class Reward:
     __tablename__ = "rewards"
-    __table_args__ = (UniqueConstraint("deal_id", name="uq_rewards_deal_id"),)
+    __table_args__ = (
+        Index(
+            "uq_rewards_deal_id_reward_type_agent_id",
+            "deal_id",
+            "reward_type",
+            "agent_id",
+            unique=True,
+            postgresql_where=text("source_reward_id IS NULL"),
+        ),
+        Index(
+            "uq_rewards_source_reward_id_agent_id",
+            "source_reward_id",
+            "agent_id",
+            unique=True,
+            postgresql_where=text("source_reward_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "(reward_type = 'override' AND source_reward_id IS NOT NULL "
+            "AND network_level IS NOT NULL) "
+            "OR (reward_type != 'override' AND source_reward_id IS NULL "
+            "AND network_level IS NULL)",
+            name="ck_rewards_override_shape",
+        ),
+        CheckConstraint("network_level IN (1, 2)", name="ck_rewards_network_level"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     deal_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -186,7 +215,26 @@ class Reward:
     decided_by_agent_id: Mapped[int | None] = mapped_column(
         ForeignKey("referral.agents.id"), nullable=True
     )
+    network_level: Mapped[int | None] = mapped_column(nullable=True)
+    source_reward_id: Mapped[int | None] = mapped_column(
+        ForeignKey("referral.rewards.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class NetworkOverrideRate:
+    """Percent of a downline partner's reward paid to the upline, per override level (1-2)."""
+
+    __tablename__ = "network_override_rates"
+    __table_args__ = (
+        CheckConstraint("level IN (1, 2)", name="ck_network_override_rates_level"),
+        CheckConstraint("percent >= 0", name="ck_network_override_rates_percent_non_negative"),
+    )
+
+    level: Mapped[int] = mapped_column(primary_key=True)
+    percent: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 @app_registry.mapped
