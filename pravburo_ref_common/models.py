@@ -87,6 +87,8 @@ class Agent:
     payout_details: Mapped[str | None] = mapped_column(String(200), nullable=True)
     inn: Mapped[str | None] = mapped_column(String(12), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    blocked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     totp_secret: Mapped[str | None] = mapped_column(String(32), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -242,6 +244,41 @@ class NetworkOverrideRate:
     level: Mapped[int] = mapped_column(primary_key=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class PayoutSettings:
+    """Single-row settings for the admin "Выплаты" panel: how many days after
+    a reward is approved (Reward.decided_at) it counts as overdue if still
+    unpaid. Admin-editable, same singleton-row pattern as NetworkOverrideRate.
+    """
+
+    __tablename__ = "payout_settings"
+    __table_args__ = (
+        CheckConstraint("overdue_days > 0", name="ck_payout_settings_overdue_days_positive"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    overdue_days: Mapped[int] = mapped_column()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class FaqItem:
+    """Editable FAQ entries shown on the public /faq page, managed from the
+    admin "Материалы" panel. `position` controls display order (ascending).
+    """
+
+    __tablename__ = "faq_items"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    question: Mapped[str] = mapped_column(String(300))
+    answer: Mapped[str] = mapped_column(Text)
+    position: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 @app_registry.mapped
