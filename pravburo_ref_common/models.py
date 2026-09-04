@@ -195,7 +195,7 @@ class Reward:
             "AND network_level IS NULL)",
             name="ck_rewards_override_shape",
         ),
-        CheckConstraint("network_level IN (1, 2)", name="ck_rewards_network_level"),
+        CheckConstraint("network_level IN (1, 2, 3)", name="ck_rewards_network_level"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -224,16 +224,23 @@ class Reward:
 
 @app_registry.mapped
 class NetworkOverrideRate:
-    """Percent of a downline partner's reward paid to the upline, per override level (1-2)."""
+    """Flat sum paid to the upline per override level (1-3), regardless of the
+    downline's own reward amount. Was a percent-of-reward rate; product
+    switched to a flat amount per level instead.
+
+    Level 3 only ever applies to a partner-type earner (self-registered) -
+    a client-type earner (auto-created, never registered) caps at level 2.
+    See bounty's _max_override_levels for that split.
+    """
 
     __tablename__ = "network_override_rates"
     __table_args__ = (
-        CheckConstraint("level IN (1, 2)", name="ck_network_override_rates_level"),
-        CheckConstraint("percent >= 0", name="ck_network_override_rates_percent_non_negative"),
+        CheckConstraint("level IN (1, 2, 3)", name="ck_network_override_rates_level"),
+        CheckConstraint("amount >= 0", name="ck_network_override_rates_amount_non_negative"),
     )
 
     level: Mapped[int] = mapped_column(primary_key=True)
-    percent: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
