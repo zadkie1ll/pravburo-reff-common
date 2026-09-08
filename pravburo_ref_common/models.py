@@ -334,3 +334,21 @@ class ReferralLinkVisit:
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class PushSubscription:
+    """One row per browser the agent granted Web Push permission in
+    (navigator.pushManager.subscribe()). A partner may have several (phone +
+    desktop); each is targeted independently when sending a notification.
+    """
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (UniqueConstraint("endpoint", name="uq_push_subscriptions_endpoint"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
+    endpoint: Mapped[str] = mapped_column(Text)
+    p256dh: Mapped[str] = mapped_column(String(200))
+    auth: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
