@@ -268,6 +268,28 @@ class NetworkOverrideRate:
 
 
 @app_registry.mapped
+class RewardStageRate:
+    """Flat amount paid to the referring agent when a deal crosses a
+    specific Bitrix stage (advance on contract signing, main payout on
+    deposit) - see pravburo-reff-crm's STAGE_REWARD_TRIGGERS for which
+    stage maps to which reward_type. Admin-editable, same singleton-row
+    pattern as NetworkOverrideRate.
+    """
+
+    __tablename__ = "reward_stage_rates"
+    __table_args__ = (
+        CheckConstraint(
+            "reward_type IN ('advance', 'main')", name="ck_reward_stage_rates_type"
+        ),
+        CheckConstraint("amount >= 0", name="ck_reward_stage_rates_amount_non_negative"),
+    )
+
+    reward_type: Mapped[RewardType] = mapped_column(enum_type(RewardType), primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
 class PayoutSettings:
     """Single-row settings for the admin "Выплаты" panel: how many days after
     a reward is approved (Reward.decided_at) it counts as overdue if still
