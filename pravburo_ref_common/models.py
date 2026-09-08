@@ -221,6 +221,12 @@ class Reward:
     source_reward_id: Mapped[int | None] = mapped_column(
         ForeignKey("referral.rewards.id"), nullable=True
     )
+    due_notice_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    overdue_notice_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
