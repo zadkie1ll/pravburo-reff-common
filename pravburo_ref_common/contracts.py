@@ -23,3 +23,9 @@ class RewardCreate(BaseModel):
     agent_id: int
     reward_type: RewardType = RewardType.MAIN
     amount: Decimal | None = None
+
+
+class DealStageUpdate(BaseModel):
+    application_id: int
+    deal_id: str = Field(min_length=1, max_length=64)
+    stage_code: str = Field(min_length=1, max_length=64)

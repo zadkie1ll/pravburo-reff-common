@@ -49,6 +49,12 @@ class DeliveryStatus(StrEnum):
     FAILED = "failed"
 
 
+class ProcessingStatus(StrEnum):
+    NEW = "new"
+    IN_PROGRESS = "in_progress"
+    CLOSED = "closed"
+
+
 class RewardStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -150,8 +156,8 @@ class PendingPasswordReset:
 class ReferralApplication:
     __tablename__ = "referral_applications"
     __table_args__ = (
-        UniqueConstraint("phone_normalized", name="uq_referral_application_phone"),
         Index("ix_referral_applications_agent_created", "agent_id", "created_at"),
+        Index("ix_referral_applications_phone_created", "phone_normalized", "created_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -167,8 +173,17 @@ class ReferralApplication:
     )
     bitrix_lead_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     delivery_error: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    processing_status: Mapped[ProcessingStatus] = mapped_column(
+        enum_type(ProcessingStatus), default=ProcessingStatus.NEW
+    )
+    assigned_manager_id: Mapped[int | None] = mapped_column(
+        ForeignKey("referral.agents.id"), nullable=True
+    )
+    bitrix_deal_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    deal_stage_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    agent: Mapped[Agent] = relationship()
+    agent: Mapped[Agent] = relationship(foreign_keys=[agent_id])
+    assigned_manager: Mapped[Agent | None] = relationship(foreign_keys=[assigned_manager_id])
 
 
 @app_registry.mapped
