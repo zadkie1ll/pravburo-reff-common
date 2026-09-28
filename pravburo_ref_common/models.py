@@ -69,6 +69,13 @@ class RewardType(StrEnum):
     OVERRIDE = "override"
 
 
+class PartnerLevel(StrEnum):
+    START = "start"
+    ACTIVE = "active"
+    PRO = "pro"
+    EXPERT = "expert"
+
+
 @app_registry.mapped
 class Agent:
     __tablename__ = "agents"
@@ -213,12 +220,17 @@ class Reward:
             name="ck_rewards_override_shape",
         ),
         CheckConstraint("network_level IN (1, 2, 3)", name="ck_rewards_network_level"),
+        CheckConstraint(
+            "(reward_type = 'quarterly_bonus' AND application_id IS NULL) "
+            "OR (reward_type != 'quarterly_bonus' AND application_id IS NOT NULL)",
+            name="ck_rewards_quarterly_bonus_no_application",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     deal_id: Mapped[str] = mapped_column(String(64), index=True)
-    application_id: Mapped[int] = mapped_column(
-        ForeignKey("referral.referral_applications.id"), index=True
+    application_id: Mapped[int | None] = mapped_column(
+        ForeignKey("referral.referral_applications.id"), index=True, nullable=True
     )
     agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
     reward_type: Mapped[RewardType] = mapped_column(enum_type(RewardType), default=RewardType.MAIN)
@@ -272,8 +284,12 @@ class RewardStageRate:
     """Flat amount paid to the referring agent when a deal crosses a
     specific Bitrix stage (advance on contract signing, main payout on
     deposit) - see pravburo-reff-crm's STAGE_REWARD_TRIGGERS for which
-    stage maps to which reward_type. Admin-editable, same singleton-row
-    pattern as NetworkOverrideRate.
+    stage maps to which reward_type. One row per (reward_type, level): the
+    amount for `main` depends on the agent's partner level for the month the
+    contract was signed (see PartnerLevelMonth); `advance` amounts are the
+    same across all 4 levels by business rule (always 3000), kept per-level
+    here only so the primary key doesn't need a nullable column. Admin-editable,
+    same singleton-per-key pattern as NetworkOverrideRate.
     """
 
     __tablename__ = "reward_stage_rates"
@@ -285,8 +301,40 @@ class RewardStageRate:
     )
 
     reward_type: Mapped[RewardType] = mapped_column(enum_type(RewardType), primary_key=True)
+    level: Mapped[PartnerLevel] = mapped_column(enum_type(PartnerLevel), primary_key=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
+class PartnerLevelMonth:
+    """One row per (agent, calendar month): the partner's level for that
+    month, fixed by the number of non-rejected contracts (ADVANCE rewards)
+    signed in it. `contracts_count` is denormalized here so the monthly
+    recompute job (see project plan) doesn't need to recount rewards to show
+    the level; `is_manual` freezes the row so that job skips it instead of
+    overwriting an admin correction.
+    """
+
+    __tablename__ = "partner_level_months"
+    __table_args__ = (
+        UniqueConstraint("agent_id", "year", "month", name="uq_partner_level_months_agent_period"),
+        CheckConstraint("month BETWEEN 1 AND 12", name="ck_partner_level_months_month"),
+        CheckConstraint(
+            "contracts_count >= 0", name="ck_partner_level_months_contracts_non_negative"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"), index=True)
+    year: Mapped[int] = mapped_column()
+    month: Mapped[int] = mapped_column()
+    contracts_count: Mapped[int] = mapped_column(default=0)
+    level: Mapped[PartnerLevel] = mapped_column(enum_type(PartnerLevel), default=PartnerLevel.START)
+    is_manual: Mapped[bool] = mapped_column(default=False, server_default="false")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 @app_registry.mapped
