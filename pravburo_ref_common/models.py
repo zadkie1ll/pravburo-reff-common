@@ -140,6 +140,12 @@ class PendingRegistration:
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     email: Mapped[str] = mapped_column(String(254), index=True)
     password_hash: Mapped[str] = mapped_column(String(256))
+    display_name: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    employment_format: Mapped[EmploymentFormat | None] = mapped_column(
+        enum_type(EmploymentFormat), nullable=True
+    )
+    payout_details: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    inn: Mapped[str | None] = mapped_column(String(12), nullable=True)
     code_hash: Mapped[str] = mapped_column(String(64))
     attempts: Mapped[int] = mapped_column(default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
