@@ -4,6 +4,7 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     CheckConstraint,
     DateTime,
@@ -264,6 +265,27 @@ class Reward:
 
 
 @app_registry.mapped
+class ExistingClientImport:
+    """Binding of an existing Bitrix client and a snapshot of accounted milestones."""
+
+    __tablename__ = "existing_client_imports"
+
+    application_id: Mapped[int] = mapped_column(
+        ForeignKey("referral.referral_applications.id", ondelete="CASCADE"), primary_key=True
+    )
+    deal_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    excluded_reward_types: Mapped[list[str]] = mapped_column(
+        JSON, default=list, server_default="[]"
+    )
+    current_reward_id: Mapped[int | None] = mapped_column(
+        ForeignKey("referral.rewards.id"), nullable=True
+    )
+    imported_by_agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"))
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+@app_registry.mapped
 class NetworkOverrideRate:
     """Flat sum paid to the upline per override level (1-3), regardless of the
     downline's own reward amount. Was a percent-of-reward rate; product
@@ -300,9 +322,7 @@ class RewardStageRate:
 
     __tablename__ = "reward_stage_rates"
     __table_args__ = (
-        CheckConstraint(
-            "reward_type IN ('advance', 'main')", name="ck_reward_stage_rates_type"
-        ),
+        CheckConstraint("reward_type IN ('advance', 'main')", name="ck_reward_stage_rates_type"),
         CheckConstraint("amount >= 0", name="ck_reward_stage_rates_amount_non_negative"),
     )
 
