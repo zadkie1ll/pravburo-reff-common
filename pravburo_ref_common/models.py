@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -68,6 +69,7 @@ class RewardType(StrEnum):
     BONUS_FULL_PAYMENT = "bonus_full_payment"
     QUARTERLY_BONUS = "quarterly_bonus"
     OVERRIDE = "override"
+    CURATOR = "curator"
 
 
 class PartnerLevel(StrEnum):
@@ -243,6 +245,7 @@ class Reward:
     reward_type: Mapped[RewardType] = mapped_column(enum_type(RewardType), default=RewardType.MAIN)
     amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payout_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[RewardStatus] = mapped_column(
         enum_type(RewardStatus), default=RewardStatus.PENDING
     )
@@ -281,6 +284,7 @@ class ExistingClientImport:
         ForeignKey("referral.rewards.id"), nullable=True
     )
     imported_by_agent_id: Mapped[int] = mapped_column(ForeignKey("referral.agents.id"))
+    workflow_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
